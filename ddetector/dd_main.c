@@ -42,9 +42,51 @@
 #include "pub_tool_threadstate.h"
 
 // data structure to store address information
-typedef struct AddrList_{
-  Int * addr_list;
+typedef struct AddrNode_{
+  Int addr;
+  struct AddrNode_ * next;
+} AddrNode;
+
+typedef struct AddrList_ {
+  AddrNode* head;
 } AddrList;
+
+// add a new address to the list
+static void update_addr_list(Int addr, AddrList* list){
+  AddrNode* new_node = VG_(malloc)("addr node", sizeof(AddrNode));
+  new_node->addr = addr;
+  new_node->next = NULL;
+
+  if(list->head == NULL){
+    list->head = new_node;
+  }
+  else{
+    AddrNode* curr = list->head;
+    while(curr->next != NULL){
+      curr = curr->next;
+    }
+
+    curr->next = new_node;
+
+  }
+
+}
+
+// free a node
+static void free_addr_node(AddrNode* node){
+  if(node->next!=NULL){
+    free_addr_node(node->next);
+  }
+  VG_(free)(node);
+}
+
+// free the complete list
+static void free_addr_list(AddrList* list){
+  free_addr_node(list->head);
+  VG_(free)(list);
+}
+
+
 
 // ananlysis variables
 static Bool** table;
@@ -168,22 +210,22 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
             addStmtToIRSB(sbOut, st);
             break;
         case Ist_Put:
-            if(trace){
-                Int offset = st->Ist.Put.offset;
-                IRExpr* data = st->Ist.Put.data;
+            // if(trace){
+            //     Int offset = st->Ist.Put.offset;
+            //     IRExpr* data = st->Ist.Put.data;
 
-                VG_(printf)("offset = %x , data = %lu, data tag = %d\n", offset, (SizeT)data, data->tag);
+            //     VG_(printf)("offset = %x , data = %lu, data tag = %d\n", offset, (SizeT)data, data->tag);
                 
-                IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
-                        mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
+            //     IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
+            //             mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
                 
-                dirty = unsafeIRDirty_0_N(2, "dd_put", VG_(fnptr_to_fnentry)(dd_put), argv);
+            //     dirty = unsafeIRDirty_0_N(2, "dd_put", VG_(fnptr_to_fnentry)(dd_put), argv);
                 
-                addStmtToIRSB(sbOut,IRStmt_Dirty(dirty)); 
+            //     addStmtToIRSB(sbOut,IRStmt_Dirty(dirty)); 
             
-            }
-            addStmtToIRSB(sbOut, st);
-            break;
+            // }
+            // addStmtToIRSB(sbOut, st);
+            // break;
             
 
         case Ist_PutI:
@@ -241,13 +283,10 @@ static void dd_pre_clo_init(void)
    VG_(needs_syscall_wrapper)(dd_pre_call, dd_post_call);
 
    // We assume 32 bit programs
-   table = (Bool**)VG_(malloc)("Memory shadow", 0xFFFF*sizeof(Bool*));
-   tempshadow = (Bool*)VG_(malloc)("Temp shadow", 0xFFFF*sizeof(Bool));
-
-   for(ULong i=0; i<0xFFFF;i++){
-      table[i] = NULL;
-      tempshadow[i] = False;
-   }
+   // this is used for memory
+   table = (Bool**)VG_(malloc)("Memory shadow", 0xFFFF*sizeof(AddrList*));
+   // this is used for temporary variables
+   tempshadow = (Bool*)VG_(malloc)("Temp shadow", 0xFFFF*sizeof(AddrList));
 
 }
 
