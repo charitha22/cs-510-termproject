@@ -57,6 +57,8 @@ static void update_addr_list(AddrList* list, Int addr){
   new_node->addr = addr;
   new_node->next = NULL;
 
+  VG_(printf)("created new addr node : addr %x value %x\n", addr, *((HChar*)addr));
+
   if(list->head == NULL){
     VG_(printf)("setting head for addr %lx\n", addr);
     list->head = new_node;
@@ -226,34 +228,87 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
             addStmtToIRSB(sbOut, st);
             break;
         case Ist_Put:
-            // if(trace){
-            //     Int offset = st->Ist.Put.offset;
-            //     IRExpr* data = st->Ist.Put.data;
+        
+            if(trace){
+              VG_(printf)("Ist_Put\n");
+              Int offset = st->Ist.Put.offset;
+              IRExpr* data = st->Ist.Put.data;
 
-            //     VG_(printf)("offset = %x , data = %lu, data tag = %d\n", offset, (SizeT)data, data->tag);
-                
-            //     IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
-            //             mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
-                
-            //     dirty = unsafeIRDirty_0_N(2, "dd_put", VG_(fnptr_to_fnentry)(dd_put), argv);
-                
-            //     addStmtToIRSB(sbOut,IRStmt_Dirty(dirty)); 
+              VG_(printf)("offset = %x , data = %lu, data tag = %d\n", offset, (SizeT)data, data->tag);
+              
+              IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
+                      mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
+              
+              dirty = unsafeIRDirty_0_N(2, "dd_put", VG_(fnptr_to_fnentry)(dd_put), argv);
+              
+              addStmtToIRSB(sbOut,IRStmt_Dirty(dirty)); 
+
             
-            // }
-            // addStmtToIRSB(sbOut, st);
-            // break;
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
             
 
         case Ist_PutI:
+            if(trace){
+              VG_(printf)("Ist_PutI\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_WrTmp:
+            if(trace){
+              VG_(printf)("Ist_WrTmp\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_Store:
+            if(trace){
+              VG_(printf)("Ist_Store\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_LoadG:
+            if(trace){
+              VG_(printf)("Ist_LoadG\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_StoreG:
+            if(trace){
+              VG_(printf)("Ist_StoreG\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_CAS:
+            if(trace){
+              VG_(printf)("Ist_CAS\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_LLSC:
+            if(trace){
+              VG_(printf)("Ist_LLSC\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_Dirty:
+            if(trace){
+              VG_(printf)("Ist_Dirty\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_MBE:
+            if(trace){
+              VG_(printf)("Ist_MBE\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
         case Ist_Exit:
+            if(trace){
+              VG_(printf)("Ist_Exit\n");
+            }
+            addStmtToIRSB(sbOut, st);
+            break;
 
         default: addStmtToIRSB( sbOut, st );    
     }
