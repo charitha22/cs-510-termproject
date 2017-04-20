@@ -151,7 +151,14 @@ static VG_REGPARM(2) void dd_put(Int offset, Int tmp){
     ThreadId tid = VG_(get_running_tid)();
     AddrList* shadow_reg = get_shadow_temp(tmp);
     // TODO : verify the sizeof here
-    VG_(set_shadow_regs_area)(tid, 1,offset, sizeof(AddrList), (const UChar*)shadow_reg);
+    if(shadow_reg!=NULL){
+      VG_(set_shadow_regs_area)(tid, 1,offset, sizeof(AddrList), (const UChar*)shadow_reg);
+    }
+    
+}
+
+static void dd_get(Int offset, Int tmp){
+  
 }
 
 //syscall handlers
@@ -228,13 +235,14 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
             addStmtToIRSB(sbOut, st);
             break;
         case Ist_Put:
-        
+
+            // put some value in to guest register
             if(trace){
               VG_(printf)("Ist_Put\n");
               Int offset = st->Ist.Put.offset;
               IRExpr* data = st->Ist.Put.data;
 
-              VG_(printf)("offset = %x , data = %lu, data tag = %d\n", offset, (SizeT)data, data->tag);
+              VG_(printf)("offset = %x , data = %lx, data tag = %x\n", offset, (SizeT)data, data->tag);
               
               IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
                       mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
@@ -256,8 +264,39 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
             addStmtToIRSB(sbOut, st);
             break;
         case Ist_WrTmp:
+            // writes a value to a temp variable
             if(trace){
               VG_(printf)("Ist_WrTmp\n");
+              IRTemp tmp = st->Ist.WrTmp.tmp;
+              IRExpr* data = st->Ist.WrTmp.data;
+              // handle different types of IR expressions
+              switch(data->tag){
+                case Iex_Get:
+                  // guest registers must be 32 bits
+                  tl_assert(data->Iex.Get.ty == Ity_I32);
+                  Int offset = data->Iex.Get.offset;
+
+                  IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
+                    mkIRExpr_HWord((HWord)tmp));
+
+                  dirty = unsafeIRDirty_0_N(2, "dd_get", VG_(fnptr_to_fnentry)(dd_get), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
+
+                case Iex_GetI:
+                case Iex_RdTmp:
+                case Iex_Qop:
+                case Iex_Triop:
+                case Iex_Binop:
+                case Iex_Unop:
+                case Iex_Load:
+                case Iex_Const:
+                case Iex_ITE:
+                case Iex_CCall:
+                case Iex_VECRET:
+                case Iex_BBPTR:
+                default: break;
+              }
             }
             addStmtToIRSB(sbOut, st);
             break;

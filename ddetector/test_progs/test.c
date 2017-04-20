@@ -4,8 +4,8 @@
 int main(){
 
 	int a, b, r, x, y, z;
-	r = read(STDIN_FILENO, &a, 1);
-	r = read(STDIN_FILENO, &b, 1);
+	r = read(STDIN_FILENO, &a, 4);
+	r = read(STDIN_FILENO, &b, 4);
 
 
     x = b*3;
