@@ -146,19 +146,50 @@ static void set_shadow_temp(IRTemp temp, AddrList tainted_by){
     tempshadow[temp] = tainted_by;
 }
 
-static VG_REGPARM(2) void dd_put(Int offset, Int tmp){
+static VG_REGPARM(2) void dd_put_reg(Int offset, Int tmp){
+
+    //VG_(printf)("dd_put call ==> offset = %x, tmp = %x\n", offset, tmp);
     
     ThreadId tid = VG_(get_running_tid)();
     AddrList* shadow_reg = get_shadow_temp(tmp);
     // TODO : verify the sizeof here
     if(shadow_reg!=NULL){
-      VG_(set_shadow_regs_area)(tid, 1,offset, sizeof(AddrList), (const UChar*)shadow_reg);
+      VG_(set_shadow_regs_area)(tid, 1,offset, sizeof(AddrList*), (const UChar*)(&shadow_reg));
     }
     
 }
 
-static void dd_get(Int offset, Int tmp){
+static VG_REGPARM(2) void dd_get_reg(Int offset, Int tmp){
+
+  //VG_(printf)("dd_get call ==> offset = %x, tmp = %x, type = %x\n", offset, tmp, ty);
+  ThreadId tid = VG_(get_running_tid)();
+  Int addr_of_addr_list = 0;
+
+  // copy the address of addr_list object to dst
+  VG_(get_shadow_regs_area)(tid, (UChar*)&addr_of_addr_list, 1, offset,sizeof(AddrList*));
+
+  // if there is a list update set the shadow temp
+  if(addr_of_addr_list != 0){
+    //VG_(printf)("setting shadow temp ===========\n");
+    set_shadow_temp(tmp, *(AddrList*)addr_of_addr_list);
+  }
   
+}
+
+static VG_REGPARM(2) void dd_tmp_to_tmp(IRTemp rdtmp, IRTemp wrtmp){
+  // rdtmp can not be invalid
+  tl_assert(rdtmp!=-1);
+
+  AddrList* addr_list = get_shadow_temp(rdtmp);
+
+  if(addr_list!=NULL){
+    set_shadow_temp(wrtmp, *addr_list);
+  }
+
+}
+
+static VG_REGPARM(3) void dd_qop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp arg3, IRTemp arg4, IRTemp wrtmp){
+
 }
 
 //syscall handlers
@@ -247,7 +278,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
               IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
                       mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
               
-              dirty = unsafeIRDirty_0_N(2, "dd_put", VG_(fnptr_to_fnentry)(dd_put), argv);
+              dirty = unsafeIRDirty_0_N(2, "dd_put_reg", VG_(fnptr_to_fnentry)(dd_put_reg), argv);
               
               addStmtToIRSB(sbOut,IRStmt_Dirty(dirty)); 
 
@@ -267,29 +298,78 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
             // writes a value to a temp variable
             if(trace){
               VG_(printf)("Ist_WrTmp\n");
-              IRTemp tmp = st->Ist.WrTmp.tmp;
+              IRTemp wrtmp = st->Ist.WrTmp.tmp;
               IRExpr* data = st->Ist.WrTmp.data;
               // handle different types of IR expressions
               switch(data->tag){
                 case Iex_Get:
-                  // guest registers must be 32 bits
-                  tl_assert(data->Iex.Get.ty == Ity_I32);
+                {
+                  // guest registers must be 16 bits or 32 bits
+                  // IRType ty = data->Iex.Get.ty;
+                  // tl_assert(ty == Ity_I32 || ty == Ity_I16);
+                  
+                  
                   Int offset = data->Iex.Get.offset;
+                  //VG_(printf)("data = %lx, type = %x, offet = %x\n", (SizeT)data, data->Iex.Get.ty, offset);
 
                   IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
-                    mkIRExpr_HWord((HWord)tmp));
+                    mkIRExpr_HWord((HWord)wrtmp));
 
-                  dirty = unsafeIRDirty_0_N(2, "dd_get", VG_(fnptr_to_fnentry)(dd_get), argv);
+                  dirty = unsafeIRDirty_0_N(2, "dd_get_reg", VG_(fnptr_to_fnentry)(dd_get_reg), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
+                }
+                case Iex_GetI:
+                case Iex_RdTmp:
+                {
+                  //VG_(printf)("Temp to temp assignment\n");
+                  IRTemp rdtmp = data->Iex.RdTmp.tmp;
+                  IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)rdtmp), mkIRExpr_HWord((HWord)wrtmp));
+                  dirty = unsafeIRDirty_0_N(2, "dd_tmp_to_tmp", VG_(fnptr_to_fnentry)(dd_tmp_to_tmp), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+                }
+                case Iex_Qop:
+                {
+                  //VG_(printf)("Q operation\n");
+                  IRExpr* arg1 = data->Iex.Qop.details->arg1;
+                  IRExpr* arg2 = data->Iex.Qop.details->arg2;
+                  IRExpr* arg3 = data->Iex.Qop.details->arg3;
+                  IRExpr* arg4 = data->Iex.Qop.details->arg4;
+
+                  // all arguments must be temp variables
+                  tl_assert(arg1->tag == Iex_RdTmp && 
+                      arg2->tag == Iex_RdTmp && 
+                      arg3->tag == Iex_RdTmp && 
+                      arg4->tag == Iex_RdTmp );
+
+                  IRExpr** argv = mkIRExprVec_5(
+                    mkIRExpr_HWord((HWord)arg1->Iex.RdTmp.tmp),
+                    mkIRExpr_HWord((HWord)arg2->Iex.RdTmp.tmp),
+                    mkIRExpr_HWord((HWord)arg3->Iex.RdTmp.tmp),
+                    mkIRExpr_HWord((HWord)arg4->Iex.RdTmp.tmp),
+                    mkIRExpr_HWord((HWord)wrtmp));
+
+                  dirty = unsafeIRDirty_0_N(3, "dd_qop_to_tmp", VG_(fnptr_to_fnentry)(dd_qop_to_tmp), argv);
                   addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
 
 
-                case Iex_GetI:
-                case Iex_RdTmp:
-                case Iex_Qop:
+                }
                 case Iex_Triop:
+                {
+                  VG_(printf)("Tri operation\n");
+                }
                 case Iex_Binop:
+                {
+                  VG_(printf)("Binary operation\n");
+                }
                 case Iex_Unop:
+                {
+                  VG_(printf)("Unary operation\n");
+                }
                 case Iex_Load:
+                {
+                  VG_(printf)("Load operation\n");
+                }
                 case Iex_Const:
                 case Iex_ITE:
                 case Iex_CCall:
