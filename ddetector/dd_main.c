@@ -286,6 +286,30 @@ static VG_REGPARM(2) void dd_unop_to_tmp(IRTemp arg1, IRTemp wrtmp){
 }
 
 
+// load from address strored in a temp variable and assign it to a temp variable
+static VG_REGPARM(2) void dd_load_from_temp_addr(IRTemp tmp_addr, IRTemp wrtmp){
+
+  AddrList* addr_list = get_shadow_temp(tmp_addr);
+
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list != NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list);
+  }
+} 
+
+static VG_REGPARM(2) void dd_load_from_const_addr(Addr const_addr, IRTemp wrtmp){
+
+  AddrList* addr_list = get_shadow_mem(const_addr);
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list);
+  }
+
+}
+
+
 //syscall handlers
 static void dd_pre_call(ThreadId tid, UInt syscallno,
                                     UWord* args, UInt nArgs){
@@ -363,11 +387,11 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
 
             // put some value in to guest register
             if(trace){
-              VG_(printf)("Ist_Put\n");
+              //VG_(printf)("Ist_Put\n");
               Int offset = st->Ist.Put.offset;
               IRExpr* data = st->Ist.Put.data;
 
-              VG_(printf)("offset = %x , data = %lx, data tag = %x\n", offset, (SizeT)data, data->tag);
+              //VG_(printf)("offset = %x , data = %lx, data tag = %x\n", offset, (SizeT)data, data->tag);
               
               IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)offset),
                       mkIRExpr_HWord( (HWord) (data->tag == Iex_RdTmp)?(data->Iex.RdTmp.tmp):-1));
@@ -391,7 +415,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
         case Ist_WrTmp:
             // writes a value to a temp variable
             if(trace){
-              VG_(printf)("Ist_WrTmp\n");
+              //VG_(printf)("Ist_WrTmp\n");
               IRTemp wrtmp = st->Ist.WrTmp.tmp;
               IRExpr* data = st->Ist.WrTmp.data;
               // handle different types of IR expressions
@@ -415,6 +439,9 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
 
                 }
                 case Iex_GetI:
+                {
+                  break;
+                }
                 case Iex_RdTmp:
                 {
                   //VG_(printf)("Temp to temp assignment\n");
@@ -522,7 +549,41 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 }
                 case Iex_Load:
                 {
-                  VG_(printf)("Load operation\n");
+                  //VG_(printf)("Load operation\n");
+                  //VG_(printf)("Load addr type : %x,  load type :%x \n", data->Iex.Load.addr->tag, data->Iex.Load.ty);
+                  IRExpr* addr = data->Iex.Load.addr;
+                  IRType ty = data->Iex.Load.ty;
+
+                  // if the loaded address is a temp variable
+                  if(addr->tag == Iex_RdTmp){
+
+                    IRTemp tmp_addr = addr->Iex.RdTmp.tmp;
+
+                    IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)tmp_addr), mkIRExpr_HWord((HWord)wrtmp));
+                    dirty = unsafeIRDirty_0_N(2, "dd_load_from_temp_addr", 
+                        VG_(fnptr_to_fnentry)(dd_load_from_temp_addr), argv);
+
+                    addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
+                  }
+                  else if(addr->tag == Iex_Const){
+                    
+                    IRConst* const_addr = addr->Iex.Const.con;
+                    //VG_(printf)("Load from Constant Address , tag = %x\n", const_addr->tag);
+                    // we support only 32 bit addresses
+                    tl_assert(const_addr->tag == Ico_U32);
+                    Addr int_const_addr = (Addr)const_addr->Ico.U32;
+
+                    IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)int_const_addr), mkIRExpr_HWord((HWord)wrtmp));
+                    dirty = unsafeIRDirty_0_N(2, "dd_load_from_const_addr", 
+                        VG_(fnptr_to_fnentry)(dd_load_from_const_addr), argv);
+
+                    addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
+                  }
+
+                  
+
                   break;
                 }
                 case Iex_Const:
@@ -538,6 +599,13 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
         case Ist_Store:
             if(trace){
               VG_(printf)("Ist_Store\n");
+              IRExpr* addr = st->Ist.Store.addr;
+              IRExpr* data = st->Ist.Store.data;
+
+              // addr
+              tl_assert()
+
+              VG_(printf)("addr tag = %x data tag = %x\n", addr->tag, data->tag);
             }
             addStmtToIRSB(sbOut, st);
             break;
