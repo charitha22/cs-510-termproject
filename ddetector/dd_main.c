@@ -208,6 +208,27 @@ static VG_REGPARM(2) void dd_tmp_to_tmp(IRTemp rdtmp, IRTemp wrtmp){
 // Qop
 static VG_REGPARM(3) void dd_qop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp arg3, IRTemp arg4, IRTemp wrtmp){
   //VG_(printf)("arg1 = %x, arg2 %x, arg3 = %x, arg4 = %x\n", arg1, arg2, arg3, arg4);
+  AddrList* addr_list_arg1 = get_shadow_temp(arg1);
+  AddrList* addr_list_arg2 = get_shadow_temp(arg2);
+  AddrList* addr_list_arg3 = get_shadow_temp(arg3);
+  AddrList* addr_list_arg4 = get_shadow_temp(arg4);
+
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list_arg1!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg1);
+  }
+  if(addr_list_arg2!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg2);
+  }
+  if(addr_list_arg3!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg3);
+  }
+  if(addr_list_arg4!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg4);
+  }
+
+
 }
 
 // Binop
@@ -227,6 +248,19 @@ static VG_REGPARM(3) void dd_binop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp wrtmp
   if(addr_list_arg2 != NULL){
     //VG_(printf)("MERGING2\n");
     merge_addr_lists(/* list1 = */addr_list_wrtmp, /*list2 = */addr_list_arg2);
+  }
+
+}
+
+// Unop
+static VG_REGPARM(2) void dd_unop_to_tmp(IRTemp arg1, IRTemp wrtmp){
+
+  AddrList* addr_list_arg1 = get_shadow_temp(arg1);
+
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list_arg1!=NULL){
+    merge_addr_lists(/*list1 = */addr_list_wrtmp, /*list2=*/addr_list_arg1);
   }
 
 }
@@ -407,7 +441,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 }
                 case Iex_Binop:
                 {
-                  VG_(printf)("Binary operation\n");
+                  //VG_(printf)("Binary operation\n");
                   IRExpr* arg1 = data->Iex.Binop.arg1;
                   IRExpr* arg2 = data->Iex.Binop.arg2;
 
@@ -433,6 +467,15 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 {
                   VG_(printf)("Unary operation\n");
                   //TODO:
+                  IRExpr* arg1 = data->Iex.Unop.arg;
+
+                  IRTemp tmp1;
+                  tmp1 = (arg1->tag == Iex_RdTmp)? arg1->Iex.RdTmp.tmp: -1;
+
+                  IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)tmp1), mkIRExpr_HWord((HWord)wrtmp));
+                  dirty = unsafeIRDirty_0_N(2, "dd_unop_to_tmp", VG_(fnptr_to_fnentry)(dd_unop_to_tmp), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
                   break;
                 }
                 case Iex_Load:
