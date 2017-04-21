@@ -96,6 +96,22 @@ static void free_addr_list(AddrList* list){
   //VG_(free)(list);
 }
 
+//add all the nodes of l2 list to l1
+static void merge_addr_lists(AddrList* l1, AddrList* l2){
+  
+  if(l2->head != NULL){
+
+    AddrNode* curr = l2->head;
+
+    while(curr != NULL){
+
+      update_addr_list(l1, curr->addr);
+
+      curr = curr->next;
+    }
+  }
+}
+
 
 
 // ananlysis variables
@@ -188,9 +204,33 @@ static VG_REGPARM(2) void dd_tmp_to_tmp(IRTemp rdtmp, IRTemp wrtmp){
 
 }
 
+// funtions for handling ALU operations
+// Qop
 static VG_REGPARM(3) void dd_qop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp arg3, IRTemp arg4, IRTemp wrtmp){
+  //VG_(printf)("arg1 = %x, arg2 %x, arg3 = %x, arg4 = %x\n", arg1, arg2, arg3, arg4);
+}
+
+// Binop
+static VG_REGPARM(3) void dd_binop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp wrtmp){
+
+  //VG_(printf)("arg1 = %x , arg2 = %x\n", arg1, arg2); 
+  AddrList* addr_list_arg1 = get_shadow_temp(arg1);
+  AddrList* addr_list_arg2 = get_shadow_temp(arg2);
+
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list_arg1!=NULL){
+    //VG_(printf)("MERGING1\n");
+    merge_addr_lists(/* list1 = */addr_list_wrtmp, /*list2 = */addr_list_arg1);
+  }
+
+  if(addr_list_arg2 != NULL){
+    //VG_(printf)("MERGING2\n");
+    merge_addr_lists(/* list1 = */addr_list_wrtmp, /*list2 = */addr_list_arg2);
+  }
 
 }
+
 
 //syscall handlers
 static void dd_pre_call(ThreadId tid, UInt syscallno,
@@ -332,7 +372,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 }
                 case Iex_Qop:
                 {
-                  VG_(printf)("Q operation\n");
+                  //VG_(printf)("Q operation\n");
                   IRExpr* arg1 = data->Iex.Qop.details->arg1;
                   IRExpr* arg2 = data->Iex.Qop.details->arg2;
                   IRExpr* arg3 = data->Iex.Qop.details->arg3;
@@ -368,11 +408,31 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 case Iex_Binop:
                 {
                   VG_(printf)("Binary operation\n");
+                  IRExpr* arg1 = data->Iex.Binop.arg1;
+                  IRExpr* arg2 = data->Iex.Binop.arg2;
+
+                  //VG_(printf)("arg1 tag %x\n", arg1->tag);
+                  //VG_(printf)("arg2 tag %x\n", arg2->tag);
+
+                  IRTemp tmp1, tmp2;
+
+                  tmp1 = (arg1->tag == Iex_RdTmp)? arg1->Iex.RdTmp.tmp: -1;
+                  tmp2 = (arg2->tag == Iex_RdTmp)? arg2->Iex.RdTmp.tmp: -1;
+
+                  IRExpr** argv = mkIRExprVec_3(
+                    mkIRExpr_HWord((HWord)tmp1),
+                    mkIRExpr_HWord((HWord)tmp2),
+                    mkIRExpr_HWord((HWord)wrtmp));
+
+                  dirty = unsafeIRDirty_0_N(3, "dd_binop_to_tmp", VG_(fnptr_to_fnentry)(dd_binop_to_tmp), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+
                   break;
                 }
                 case Iex_Unop:
                 {
                   VG_(printf)("Unary operation\n");
+                  //TODO:
                   break;
                 }
                 case Iex_Load:
@@ -503,6 +563,11 @@ static void dd_pre_clo_init(void)
 
    // this is used for temporary variables
    tempshadow = (AddrList*)VG_(malloc)("Temp shadow", 0xFFFF*sizeof(AddrList));
+
+   // set head to NULL
+   for(ULong i = 0; i < 0xFFFF; i++){
+    tempshadow[i].head = NULL;
+   }
 
 }
 
