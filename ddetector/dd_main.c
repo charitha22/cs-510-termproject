@@ -231,6 +231,26 @@ static VG_REGPARM(3) void dd_qop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp arg3, I
 
 }
 
+// Triop
+static VG_REGPARM(3) void dd_triop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp arg3, IRTemp wrtmp){
+  AddrList* addr_list_arg1 = get_shadow_temp(arg1);
+  AddrList* addr_list_arg2 = get_shadow_temp(arg2);
+  AddrList* addr_list_arg3 = get_shadow_temp(arg3);
+
+  AddrList* addr_list_wrtmp = get_shadow_temp(wrtmp);
+
+  if(addr_list_arg1!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg1);
+  }
+  if(addr_list_arg2!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg2);
+  }
+  if(addr_list_arg3!=NULL){
+    merge_addr_lists(addr_list_wrtmp, addr_list_arg3);
+  }
+
+}
+
 // Binop
 static VG_REGPARM(3) void dd_binop_to_tmp(IRTemp arg1, IRTemp arg2, IRTemp wrtmp){
 
@@ -436,8 +456,30 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 }
                 case Iex_Triop:
                 {
-                  VG_(printf)("Tri operation\n");
+                  //VG_(printf)("Tri operation\n");
+
+                  IRExpr* arg1 = data->Iex.Triop.details->arg1;
+                  IRExpr* arg2 = data->Iex.Triop.details->arg2;
+                  IRExpr* arg3 = data->Iex.Triop.details->arg3;
+
+                  IRTemp tmp1, tmp2, tmp3;
+
+                  tmp1 = (arg1!=NULL)? arg1->Iex.RdTmp.tmp: -1;
+                  tmp2 = (arg2!=NULL)? arg2->Iex.RdTmp.tmp: -1;
+                  tmp3 = (arg3!=NULL)? arg3->Iex.RdTmp.tmp: -1;
+
+
+
+                  IRExpr** argv = mkIRExprVec_4(
+                    mkIRExpr_HWord((HWord)tmp1),
+                    mkIRExpr_HWord((HWord)tmp2),
+                    mkIRExpr_HWord((HWord)tmp3),
+                    mkIRExpr_HWord((HWord)wrtmp));
+
+                  dirty = unsafeIRDirty_0_N(3, "dd_triop_to_tmp", VG_(fnptr_to_fnentry)(dd_triop_to_tmp), argv);
+                  addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
                   break;
+
                 }
                 case Iex_Binop:
                 {
@@ -465,7 +507,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                 }
                 case Iex_Unop:
                 {
-                  VG_(printf)("Unary operation\n");
+                  //VG_(printf)("Unary operation\n");
                   //TODO:
                   IRExpr* arg1 = data->Iex.Unop.arg;
 
