@@ -317,6 +317,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
 
                   dirty = unsafeIRDirty_0_N(2, "dd_get_reg", VG_(fnptr_to_fnentry)(dd_get_reg), argv);
                   addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+                  break;
 
                 }
                 case Iex_GetI:
@@ -327,48 +328,57 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
                   IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)rdtmp), mkIRExpr_HWord((HWord)wrtmp));
                   dirty = unsafeIRDirty_0_N(2, "dd_tmp_to_tmp", VG_(fnptr_to_fnentry)(dd_tmp_to_tmp), argv);
                   addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+                  break;
                 }
                 case Iex_Qop:
                 {
-                  //VG_(printf)("Q operation\n");
+                  VG_(printf)("Q operation\n");
                   IRExpr* arg1 = data->Iex.Qop.details->arg1;
                   IRExpr* arg2 = data->Iex.Qop.details->arg2;
                   IRExpr* arg3 = data->Iex.Qop.details->arg3;
                   IRExpr* arg4 = data->Iex.Qop.details->arg4;
 
-                  // all arguments must be temp variables
-                  tl_assert(arg1->tag == Iex_RdTmp && 
-                      arg2->tag == Iex_RdTmp && 
-                      arg3->tag == Iex_RdTmp && 
-                      arg4->tag == Iex_RdTmp );
+                  IRTemp tmp1, tmp2, tmp3, tmp4;
+
+                  tmp1 = (arg1!=NULL)? arg1->Iex.RdTmp.tmp: -1;
+                  tmp2 = (arg2!=NULL)? arg2->Iex.RdTmp.tmp: -1;
+                  tmp3 = (arg3!=NULL)? arg3->Iex.RdTmp.tmp: -1;
+                  tmp4 = (arg4!=NULL)? arg4->Iex.RdTmp.tmp: -1;
+
+
 
                   IRExpr** argv = mkIRExprVec_5(
-                    mkIRExpr_HWord((HWord)arg1->Iex.RdTmp.tmp),
-                    mkIRExpr_HWord((HWord)arg2->Iex.RdTmp.tmp),
-                    mkIRExpr_HWord((HWord)arg3->Iex.RdTmp.tmp),
-                    mkIRExpr_HWord((HWord)arg4->Iex.RdTmp.tmp),
+                    mkIRExpr_HWord((HWord)tmp1),
+                    mkIRExpr_HWord((HWord)tmp2),
+                    mkIRExpr_HWord((HWord)tmp3),
+                    mkIRExpr_HWord((HWord)tmp4),
                     mkIRExpr_HWord((HWord)wrtmp));
 
                   dirty = unsafeIRDirty_0_N(3, "dd_qop_to_tmp", VG_(fnptr_to_fnentry)(dd_qop_to_tmp), argv);
                   addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
+                  break;
 
 
                 }
                 case Iex_Triop:
                 {
                   VG_(printf)("Tri operation\n");
+                  break;
                 }
                 case Iex_Binop:
                 {
                   VG_(printf)("Binary operation\n");
+                  break;
                 }
                 case Iex_Unop:
                 {
                   VG_(printf)("Unary operation\n");
+                  break;
                 }
                 case Iex_Load:
                 {
                   VG_(printf)("Load operation\n");
+                  break;
                 }
                 case Iex_Const:
                 case Iex_ITE:
