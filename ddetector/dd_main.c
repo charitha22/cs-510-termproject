@@ -603,7 +603,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
               IRExpr* data = st->Ist.Store.data;
 
               // addr
-              tl_assert()
+              //tl_assert()
 
               VG_(printf)("addr tag = %x data tag = %x\n", addr->tag, data->tag);
             }
