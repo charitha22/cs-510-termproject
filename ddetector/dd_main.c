@@ -57,15 +57,15 @@ static void update_addr_list(AddrList* list, Int addr){
   new_node->addr = addr;
   new_node->next = NULL;
 
-  VG_(printf)("created new addr node : addr %x value %x\n", addr, *((HChar*)addr));
+  //VG_(printf)("created new addr node : addr %x value %x\n", addr, *((HChar*)addr));
 
   if(list->head == NULL){
-    VG_(printf)("setting head for addr %lx\n", addr);
+    //VG_(printf)("setting head for addr %lx\n", addr);
     list->head = new_node;
 
   }
   else{
-    VG_(printf)("head is already set\n");
+    //VG_(printf)("head is already set\n");
     AddrNode* curr = list->head;
     while(curr->next != NULL){
       curr = curr->next;
@@ -89,7 +89,7 @@ static void free_addr_node(AddrNode* node){
 // free the complete list
 static void free_addr_list(AddrList* list){
   if(list->head!=NULL){
-    VG_(printf)("head is not null\n");
+    //VG_(printf)("head is not null\n");
     free_addr_node(list->head);
   }
   
@@ -137,13 +137,13 @@ static AddrList* get_shadow_mem(Addr addr){
 
 // set 'addr' as tainted by 'tainted_by'
 static void set_shadow_mem(Addr addr, Addr tainted_by){
-    VG_(printf)("setting shadow mem for %lx as tainted by %lx\n",addr, tainted_by);
+    //VG_(printf)("setting shadow mem for %lx as tainted by %lx\n",addr, tainted_by);
     Int up = (((addr)&(0xFFFF0000))>>16);
-    VG_(printf)("up value = %x\n", up);
+    //VG_(printf)("up value = %x\n", up);
     AddrList* lookup = table[up];
     // on demand allocation
     if(lookup == NULL){
-        VG_(printf)("lookup is NULL\n");
+        //VG_(printf)("lookup is NULL\n");
         table[up] = (AddrList*)VG_(malloc)("Memory shadow", 0xFFFF*sizeof(AddrList));
         for(ULong i = 0; i < 0xFFFF; i++){
           table[up][i].head = NULL;
@@ -177,9 +177,21 @@ static VG_REGPARM(2) void dd_put_reg(Int offset, Int tmp){
 
 static VG_REGPARM(2) void dd_get_reg(Int offset, Int tmp){
 
-  //VG_(printf)("dd_get call ==> offset = %x, tmp = %x, type = %x\n", offset, tmp, ty);
+
+
   ThreadId tid = VG_(get_running_tid)();
   Int addr_of_addr_list = 0;
+
+  //VG_(printf)("dd_get call ==> offset = %x, tmp = %x, type = %x\n", offset, tmp, ty);
+  ULong val = NULL;
+  VG_(get_shadow_regs_area)(tid, (UChar*)&val, 0, offset,sizeof(ULong));
+
+  
+  // if(val != NULL){
+  //   VG_(printf)("value of reg = %x\n", val);
+  //   //VG_(printf)("value saved in addr = %x\n", *(UChar*)val);
+  // }
+
 
   // copy the address of addr_list object to dst
   VG_(get_shadow_regs_area)(tid, (UChar*)&addr_of_addr_list, 1, offset,sizeof(AddrList*));
@@ -287,9 +299,13 @@ static VG_REGPARM(2) void dd_unop_to_tmp(IRTemp arg1, IRTemp wrtmp){
 
 
 // load from address strored in a temp variable and assign it to a temp variable
-static VG_REGPARM(2) void dd_load_from_addr(IRExpr* addr, IRTemp wrtmp){
+static VG_REGPARM(2) void dd_load_from_addr(Addr addr, IRTemp wrtmp){
 
-  VG_(printf)("load from addr %08lx expr tag %x\n", addr, addr->tag);
+  //VG_(printf)("load from addr %08lx \n", addr);
+
+  // if(addr->tag == 0x1909){
+  //   VG_(printf)("consta value of addr = %x\n", addr->Iex.Const.con->Ico.U32);
+  // }
 
   AddrList* addr_list = get_shadow_mem(addr);
 
@@ -319,7 +335,7 @@ static void print_and_propagate_addr_list(IRExpr* addr, AddrList* l){
       AddrNode* curr = l->head;
 
       while(curr!=NULL){
-        VG_(printf)("%08lx ", curr->addr);
+        VG_(printf)("[0x%08lx:%08x] ", curr->addr, *(UChar*)(curr->addr));
 
         set_shadow_mem(addr, (Addr)curr->addr);
 
@@ -335,12 +351,12 @@ static void print_and_propagate_addr_list(IRExpr* addr, AddrList* l){
 // store instruction 
 static VG_REGPARM(2) void dd_store_tmp_to_addr(IRExpr* addr, IRTemp data){
 
-  VG_(printf)("store to address %08lx \n", addr);
+  //VG_(printf)("store to address %08lx \n", addr);
   // here we print the provanence
   AddrList* addr_list_data = get_shadow_temp(data);
 
   if(addr_list_data != NULL && addr != -1){
-    VG_(printf)("addr %08lx : ", addr);
+    VG_(printf)("0x%08lx [DD]: ", addr);
 
     print_and_propagate_addr_list(addr, addr_list_data);
 
@@ -364,10 +380,10 @@ static void dd_post_call(ThreadId tid, UInt syscallno,
     if(trace){
         if(syscallno==__NR_read){
             // read syscall args : fd, buffer address, size 
-            VG_(printf)("read %d %x %d\n",args[0], args[1],args[2]);
+            //VG_(printf)("read %d %x %d\n",args[0], args[1],args[2]);
             Int i;
             for(i=0; i < args[2];i++){
-              VG_(printf)("addr %08lx : %08lx\n", args[1]+i, args[1]+i);
+              //VG_(printf)("addr %08lx : %08lx\n", args[1]+i, args[1]+i);
               set_shadow_mem(args[1]+i, args[1]+i);
             }
         }
@@ -602,7 +618,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
 
                   //   IRTemp tmp_addr = addr->Iex.RdTmp.tmp;
 
-                  IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)addr), mkIRExpr_HWord((HWord)wrtmp));
+                  IRExpr** argv = mkIRExprVec_2(addr, mkIRExpr_HWord((HWord)wrtmp));
                   dirty = unsafeIRDirty_0_N(2, "dd_load_from_addr", 
                     VG_(fnptr_to_fnentry)(dd_load_from_addr), argv);
 
@@ -656,7 +672,7 @@ IRSB* dd_instrument ( VgCallbackClosure* closure,
               //IRTemp addr_temp = (addr->tag == Iex_RdTmp)? addr->Iex.RdTmp.tmp : -1;
               IRTemp data_temp = (data->tag == Iex_RdTmp)? data->Iex.RdTmp.tmp : -1;
 
-              IRExpr** argv = mkIRExprVec_2(mkIRExpr_HWord((HWord)addr), mkIRExpr_HWord((HWord)data_temp));
+              IRExpr** argv = mkIRExprVec_2(addr, mkIRExpr_HWord((HWord)data_temp));
               dirty = unsafeIRDirty_0_N(2, "dd_store_tmp_to_addr",VG_(fnptr_to_fnentry)(dd_store_tmp_to_addr), argv);
 
               addStmtToIRSB(sbOut, IRStmt_Dirty(dirty));
@@ -726,12 +742,12 @@ static void dd_fini(Int exitcode)
   VG_(free)(tempshadow);
   for(ULong i=0; i<0xFFFF; i++){
     if(table[i]!=NULL){
-      VG_(printf)("table[%lx] is not null\n", i );
+      //VG_(printf)("table[%lx] is not null\n", i );
       //free_addr_list(table[i]);
 
       for(ULong j=0; j<0xFFFF; j++){
         if(table[i][j].head!=NULL){
-          VG_(printf)("head at %lx is not null\n", j);
+          //VG_(printf)("head at %lx is not null\n", j);
           free_addr_list(&table[i][j]);
         }
       }
