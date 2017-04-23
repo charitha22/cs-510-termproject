@@ -1,14 +1,19 @@
 #include <unistd.h>
+//#include <stdio.h>
 int main()
 {
-		char a, b, x, y, z;
+		char a,b,x; //b, x, y, z;
 		
-		read(STDIN_FILENO, &a, 1);
-		read(STDIN_FILENO, &b, 1);
-
-		x = b * 3;
-		y = x - a;
-		z = x + y;
+		read(0, &a, 1);
+		read(0, &b, 1);
+		
+		//int k = (void*)&a;
+		//printf("hello");
+		
+		x = a+b;
+		//x = b * 3;
+		//y = x - a;
+		//z = x + y;
 
 		return 0;
 }
