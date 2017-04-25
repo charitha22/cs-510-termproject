@@ -69,18 +69,20 @@ static void update_addr_list(AddrList* list, Int addr){
     Bool found = False;
 
     AddrNode* curr = list->head;
-    while(curr->next != NULL){
+    AddrNode* prev = NULL;
+    while(curr != NULL){
       if(curr->addr == addr){
         //VG_(printf)("addr found\n");
         found = True;
         VG_(free)(new_node);
         break;
       }
+      prev = curr;
       curr = curr->next;
     }
 
     if(!found){
-      curr->next = new_node;
+      prev->next = new_node;
     }
   }
 
@@ -316,38 +318,16 @@ static VG_REGPARM(2) void dd_load_from_addr(Addr addr, IRTemp wrtmp){
 } 
 
 
-// print an addr list without repetitions
+// print an addr list 
 static void print_addr_list(AddrList* l){
 
-  Addr addr_array[1024];
-
-  for(Int i = 0; i < 1024; i++){
-    addr_array[i] = -1;
-  }
-
   AddrNode* curr = l->head;
-  Int idx = 0;
 
   while(curr!=NULL){
-
     Addr curr_addr = curr->addr;
-    Bool found = False;
-
-    for(Int i = 0; i < idx; i++){
-      if(addr_array[i]==curr_addr){
-        found = True;
-        break;
-      }
-    }
-
-    if(!found){
-      addr_array[idx] = curr_addr;
-      idx++;
-      VG_(printf)("[0x%08lx:%08x] ", curr_addr, *(UChar*)(curr_addr));
-    }
-
+    VG_(printf)("[0x%08lx:%08x] ", curr_addr, *(UChar*)(curr_addr));
+    
     curr = curr->next;
-
   }
 
 }
