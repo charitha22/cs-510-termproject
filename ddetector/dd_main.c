@@ -66,13 +66,22 @@ static void update_addr_list(AddrList* list, Int addr){
   }
   else{
     //VG_(printf)("head is already set\n");
+    Bool found = False;
+
     AddrNode* curr = list->head;
     while(curr->next != NULL){
+      if(curr->addr == addr){
+        //VG_(printf)("addr found\n");
+        found = True;
+        VG_(free)(new_node);
+        break;
+      }
       curr = curr->next;
     }
 
-    curr->next = new_node;
-
+    if(!found){
+      curr->next = new_node;
+    }
   }
 
 }
@@ -327,6 +336,43 @@ static VG_REGPARM(2) void dd_load_from_addr(Addr addr, IRTemp wrtmp){
 
 // }
 
+// print an addr list without repetitions
+static void print_addr_list(AddrList* l){
+
+  // hack
+  Addr addr_array[1024];
+
+  for(Int i = 0; i < 1024; i++){
+    addr_array[i] = -1;
+  }
+
+  AddrNode* curr = l->head;
+  Int idx = 0;
+
+  while(curr!=NULL){
+
+    Addr curr_addr = curr->addr;
+    Bool found = False;
+
+    for(Int i = 0; i < idx; i++){
+      if(addr_array[i]==curr_addr){
+        found = True;
+        break;
+      }
+    }
+
+    if(!found){
+      addr_array[idx] = curr_addr;
+      idx++;
+      VG_(printf)("[0x%08lx:%08x] ", curr_addr, *(UChar*)(curr_addr));
+    }
+
+    curr = curr->next;
+
+  }
+
+}
+
 // print all the nodes in an addres list
 static void print_and_propagate_addr_list(IRExpr* addr, AddrList* l){
 
@@ -335,12 +381,14 @@ static void print_and_propagate_addr_list(IRExpr* addr, AddrList* l){
       AddrNode* curr = l->head;
 
       while(curr!=NULL){
-        VG_(printf)("[0x%08lx:%08x] ", curr->addr, *(UChar*)(curr->addr));
+        //VG_(printf)("[0x%08lx:%08x] ", curr->addr, *(UChar*)(curr->addr));
 
         set_shadow_mem(addr, (Addr)curr->addr);
 
         curr = curr->next;
       }
+
+      print_addr_list(l);
 
     }
   }
@@ -355,7 +403,7 @@ static VG_REGPARM(2) void dd_store_tmp_to_addr(IRExpr* addr, IRTemp data){
   // here we print the provanence
   AddrList* addr_list_data = get_shadow_temp(data);
 
-  if(addr_list_data != NULL && addr != -1){
+  if(addr_list_data != NULL ){
     VG_(printf)("0x%08lx [DD]: ", addr);
 
     print_and_propagate_addr_list(addr, addr_list_data);
@@ -385,6 +433,15 @@ static void dd_post_call(ThreadId tid, UInt syscallno,
             for(i=0; i < args[2];i++){
               //VG_(printf)("addr %08lx : %08lx\n", args[1]+i, args[1]+i);
               set_shadow_mem(args[1]+i, args[1]+i);
+
+              // print the DDs
+              AddrList* addr_l = get_shadow_mem(args[1]+i);
+              if(addr_l!=NULL){
+                VG_(printf)("0x%08lx [DD]: ", args[1]+i);
+                print_addr_list(addr_l);
+                VG_(printf)("\n");
+              }
+
             }
         }
     }
