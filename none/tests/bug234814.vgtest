@@ -1,2 +1,0 @@
-prereq: ! ../../tests/arch_test tilegx
-prog: bug234814

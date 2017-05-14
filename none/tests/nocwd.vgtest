@@ -1,2 +1,0 @@
-prog: nocwd
-vgopts: -q --trace-children=yes
