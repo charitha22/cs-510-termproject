@@ -5,11 +5,11 @@ This is a minimal implementation of a data provenance tracking algorithm conside
 ## How to use the tool?
 
 * Install valgrind
-* Follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html) on setting up new valgrins tools
+* Follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html) on setting up a new valgrins tool
 
 ## Implemenation
 
-The implementation is based on hash maps. We have used seperate hash maps for storing data dependances on memory addreses and on temporary variables. For registers we have used valgrind's set_shadow_reg_area and get_shadow_reg_area platforms.
+The implementation is based on hash maps. We have used seperate hash maps for storing data dependances on memory locations and on temporary variables. For registers we have used valgrind's set_shadow_reg_area and get_shadow_reg_area platforms.
 
 ### How provenance sources are handled? 
 
