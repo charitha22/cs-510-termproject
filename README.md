@@ -1,7 +1,10 @@
 # Provenance tracking tool using valgrind
 
-The main objective of this tool is to detect data dependences dynamically for x86 binaries. The provenance sources considered are stdin or files. More generally any reads from a given file descriptor is considered a provenance source. The provenance targets are all the program variables. The tool is capable of tracking the data provenance from sources to targets across registers and VEX IR based temporary variables. 
+This is a minimal implementation of a data provenance trecking algorithm considering only dynamic data dependances. The provenance sources considered are stdin or files. More generally any reads from a given file descriptor is considered a provenance source. The provenance targets are all the program variables. The tool is capable of tracking the data provenance from sources to targets across registers and VEX IR based temporary variables. 
 
+## How to use the tool?
+
+To install the tool please follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html)
 
 
 
