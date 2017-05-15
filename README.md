@@ -5,7 +5,7 @@ This is a minimal implementation of a data provenance tracking algorithm conside
 ## How to use the tool?
 
 * Install valgrind
-* Then follow the instructions described in [here] on setting up new valgrins tools (http://www.valgrind.org/docs/manual/writing-tools.html)
+* Follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html) on setting up new valgrins tools
 
 ## Implemenation
 
@@ -19,8 +19,8 @@ The implementation is based on hash maps. We have used seperate hash maps for st
 
 For the folowing c program,
 
-#include <stdio.h>
-#include <unistd.h>
+#include <stdio.h> \\
+#include <unistd.h> \\
 int main(){
 int a, b, r, x, y, z;
     r = read(STDIN_FILENO, &a, 4);
