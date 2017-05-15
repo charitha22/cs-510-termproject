@@ -5,7 +5,7 @@ This is a minimal implementation of a data provenance tracking algorithm conside
 ## How to use the tool?
 
 * Install valgrind
-* Follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html) on setting up a new valgrins tool
+* Follow the instructions described in [here](http://www.valgrind.org/docs/manual/writing-tools.html) on setting up a new valgrid tool
 
 ## Implemenation
 
