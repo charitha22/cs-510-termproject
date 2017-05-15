@@ -9,60 +9,24 @@ This is a minimal implementation of a data provenance tracking algorithm conside
 
 ## Implemenation
 
-The implementation is based on hash maps. We have used seperate hash maps for storing data dependances on memory addreses and on temporary variables. Fore registers we have used valgrind's set_shadow_reg_area and get_shadow_reg_area platforms.
+The implementation is based on hash maps. We have used seperate hash maps for storing data dependances on memory addreses and on temporary variables. For registers we have used valgrind's set_shadow_reg_area and get_shadow_reg_area platforms.
 
-## Author
+### How provenance sources are handled? 
 
-[Charitha Saumya](https://sites.google.com/site/charithasaumya/)
+Since the sources are reads from file descriptors we detect them using syscall APIs in valgrind. When ever there is a read syscall we update the corresponding buffer address of the read as tainted by the same address.
 
-## Example
+### How shadow registers are updated? 
 
-For the folowing c program,
+Whenever there is a register write we update its corresponding shadow location with all the addresses the write depends on. Similarly for a register read we will return the corresponding address list to the reader to update their dependences.
 
-#include <stdio.h> \\
-#include <unistd.h> \\
-int main(){
-int a, b, r, x, y, z;
-    r = read(STDIN_FILENO, &a, 4);
-    r = read(STDIN_FILENO, &b, 4);
-    x = b*3;
-    y = x-a;
-    z = x+y;
-    return 0;
-}
+### How loads and stores are handled?
 
-Output of this tool is,
+Loads are essentially reading some memory location and updating a temp variable with its content. The corresponding abstract state update for this would be to access the shadow memory and pass the corresponding taint address list to the temp shadow map. A store would be updating a memory address with the content of some temp variable. In this case first we pass the provenance from the temp variable to store address and after that we output (final result of the tool) the address list.
 
-==22063== ddtector, dynamic data dependance detector
-==22063== Copyright (C) 2002-2015, and GNU GPL’d, by Charitha Saumya.
-==22063== Using Valgrind-3.12.0 and LibVEX; rerun with -h for copyright info
-==22063== Command: ./tc2
-==22063==
-0xfee01d8c [DD]:
-0xfee01d88 [DD]:
-0xfee01d84 [DD]:
-0xfee01d7c [DD]:
-0xfee01d54 [DD]:
-0xfee01d44 [DD]:
-0xfee01d48 [DD]:
-22222222
-0xfee01d64 [DD]: \[0xfee01d64:00000032\]
-0xfee01d65 [DD]: \[0xfee01d65:00000032\]
-0xfee01d66 [DD]: \[0xfee01d66:00000032\]
-0xfee01d67 [DD]: \[0xfee01d67:00000032\]
-0xfee01d6c [DD]:
-0xfee01d54 [DD]:
-0xfee01d48 [DD]:
-0xfee01d68 [DD]: \[0xfee01d68:00000032\]
-0xfee01d69 [DD]: \[0xfee01d69:00000032\]
-0xfee01d6a [DD]: \[0xfee01d6a:00000032\]
-0xfee01d6b [DD]: \[0xfee01d6b:00000032\]
-0xfee01d6c [DD]:
-0xfee01d70 [DD]: \[0xfee01d68:00000032\]
-0xfee01d74 [DD]: \[0xfee01d68:00000032\] [0xfee01d64:00000032]
-0xfee01d78 [DD]: \[0xfee01d68:00000032\] [0xfee01d64:00000032]
-0xfee01da0 [DD]:
-==22063==
+### How ALU operations are handled? 
+
+ALU operations are arithmetic operations on top of temp variables and constants. The result is then assigned to another temp variable. For this we can simply pass the provenance from arguments of the ALU operation to the resultant temp variable.
+
 
 <!--These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.-->
 
