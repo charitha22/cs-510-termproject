@@ -1,7 +1,6 @@
-# A Valgrind tool for Dynamic Data Dependance Detection 
+# Provenance tracking tool using valgrind
 
-This is a minimal implementation of a hash map based online data depenedance algorithm. This implementation can be used for detecting data dependanceis of 32-bit x86 binaries.
-## How to setup
+The main objective of this tool is to detect data dependences dynamically for x86 binaries. The provenance sources considered are stdin or files. More generally any reads from a given file descriptor is considered a provenance source. The provenance targets are all the program variables. The tool is capable of tracking the data provenance from sources to targets across registers and VEX IR based temporary variables. 
 
 
 
