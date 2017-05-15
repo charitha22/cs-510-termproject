@@ -1,8 +1,10 @@
 # A Valgrind tool for Dynamic Data Dependance Detection 
 
-One Paragraph of project description goes here
+This is a minimal implementation of a hash map based online data depenedance algorithm. This implementation can be used for detecting data dependanceis of 32-bit x86 binaries.
+## How to setup
 
-## Getting Started
+
+
 
 <!--These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.-->
 
